@@ -1,0 +1,67 @@
+#include <iostream>
+#include <vector>
+#include <omp.h>
+
+using namespace std;
+
+class Graph {
+    int V;
+    vector<vector<int>> adj;
+
+public:
+    Graph(int V) : V(V) {
+        adj.resize(V);
+    }
+
+    void addEdge(int v, int w) {
+        adj[v].push_back(w);
+    }
+
+    void DFSUtil(int v, vector<bool>& visited) {
+        visited[v] = true;
+        cout << v << " ";
+
+        #pragma omp parallel for
+        for (int i = 0; i < adj[v].size(); ++i) {
+            int n = adj[v][i];
+            if (!visited[n])
+                DFSUtil(n, visited);
+        }
+    }
+
+    void DFS(int v) {
+        vector<bool> visited(V, false);
+
+        // Run DFS from the given source vertex
+        cout << "DFS traversal starting from vertex " << v << ": ";
+        DFSUtil(v, visited);
+        cout << endl;
+    }
+};
+
+int main() {
+    int V, E;
+    cout << "Enter the number of vertices: ";
+    cin >> V;
+    cout << "Enter the number of edges: ";
+    cin >> E;
+
+    Graph g(V);
+
+    cout << "Enter the edges (source and destination):" << endl;
+    for (int i = 0; i < E; ++i) {
+        int u, v;
+        cin >> u >> v;
+        g.addEdge(u, v);
+    }
+
+    #pragma omp parallel num_threads(2)
+    {
+        #pragma omp single
+        {
+            g.DFS(0);
+        }
+    }
+
+    return 0;
+}
