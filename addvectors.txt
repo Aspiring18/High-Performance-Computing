@@ -1,0 +1,71 @@
+%%writefile add.cu
+#include <iostream>
+#include <vector>
+#include <cuda_runtime.h>
+
+// CUDA kernel to add two large vectors
+__global__ void vectorAdd(const int *a, const int *b, int *c, int size) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < size) {
+        printf("Thread %d is computing c[%d] = a[%d] + b[%d]\n", threadIdx.x, i, i, i);
+        c[i] = a[i] + b[i];
+    }
+}
+
+int main() {
+    int size;
+    std::cout << "Enter the size of the vectors: ";
+    std::cin >> size;
+
+    // Allocate memory for vectors on host
+    std::vector<int> host_a(size);
+    std::vector<int> host_b(size);
+    std::vector<int> host_c(size);
+
+    // Input elements of vectors
+    std::cout << "Enter elements of vector A: ";
+    for (int i = 0; i < size; ++i) {
+        std::cin >> host_a[i];
+    }
+
+    std::cout << "Enter elements of vector B: ";
+    for (int i = 0; i < size; ++i) {
+        std::cin >> host_b[i];
+    }
+
+    // Allocate memory for vectors on device
+    int *device_a, *device_b, *device_c;
+    cudaMalloc(&device_a, size * sizeof(int));
+    cudaMalloc(&device_b, size * sizeof(int));
+    cudaMalloc(&device_c, size * sizeof(int));
+
+    // Copy vectors from host to device
+    cudaMemcpy(device_a, host_a.data(), size * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(device_b, host_b.data(), size * sizeof(int), cudaMemcpyHostToDevice);
+
+    // Define grid and block dimensions
+    int blockSize = 256;
+    int numBlocks = (size + blockSize - 1) / blockSize;
+
+    // Launch kernel
+    vectorAdd<<<numBlocks, blockSize>>>(device_a, device_b, device_c, size);
+
+    // Copy result vector from device to host
+    cudaMemcpy(host_c.data(), device_c, size * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // Print result
+    std::cout << "Result vector:" << std::endl;
+    for (int i = 0; i < size; ++i) {
+        std::cout << host_a[i] << " + " << host_b[i] << " = " << host_c[i] << std::endl;
+    }
+
+    // Free device memory
+    cudaFree(device_a);
+    cudaFree(device_b);
+    cudaFree(device_c);
+
+    return 0;
+}
+
+//!nvcc add.cu -o add
+//!./add   
