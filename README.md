@@ -7,8 +7,8 @@ To run CUDA :
 2) ./filename
 
 To run on Terminal For CUDA:
-//Terminal: nvcc -o file file.cu
-//./file
+1) Terminal: nvcc -o file file.cu
+2) ./file
 
 Header Files for CUDA: 
 #include <iostream>
