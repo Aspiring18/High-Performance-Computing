@@ -1,0 +1,56 @@
+%%writefile minmax.cpp
+#include <iostream>
+#include <omp.h>
+#include <chrono>
+
+using namespace std;
+using namespace std::chrono;
+
+void parallel_reduction(int arr[], int n) {
+    int min_val = arr[0];
+    int max_val = arr[0];
+    int sum = 0;
+
+    high_resolution_clock::time_point t1 = high_resolution_clock::now();
+
+    #pragma omp parallel for reduction(min:min_val) reduction(max:max_val) reduction(+:sum)
+    for (int i = 0; i < n; i++) {
+        if (arr[i] < min_val) {
+            min_val = arr[i];
+        }
+        if (arr[i] > max_val) {
+            max_val = arr[i];
+        }
+        sum += arr[i];
+    }
+
+    high_resolution_clock::time_point t2 = high_resolution_clock::now();
+    duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+
+    double average = static_cast<double>(sum) / n;
+
+    cout << "Minimum value: " << min_val << endl;
+    cout << "Maximum value: " << max_val << endl;
+    cout << "Sum of array elements: " << sum << endl;
+    cout << "Average value: " << average << endl;
+    cout << "Time taken: " << time_span.count() << " seconds" << endl;
+}
+
+int main() {
+    int n;
+    cout << "Enter the number of elements: ";
+    cin >> n;
+
+    int arr[n];
+    cout << "Enter the elements: ";
+    for (int i = 0; i < n; i++) {
+        cin >> arr[i];
+    }
+
+    parallel_reduction(arr, n);
+
+    return 0;
+}
+
+//g++ -fopenmp filename.cpp -o filename
+//./filename
