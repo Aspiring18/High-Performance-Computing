@@ -1,11 +1,14 @@
 To run OPEMP code :
-g++ -fopenmp filename.cpp -o filename
-./filename 
+1) g++ -fopenmp filename.cpp -o filename
+2) ./filename 
 
 To run CUDA :
-nvcc filename.cu -o filename
-./filename
+1) nvcc filename.cu -o filename
+2) ./filename
 
+To run on Terminal For CUDA:
+//Terminal: nvcc -o file file.cu
+//./file
 
 Header Files for CUDA: 
 #include <iostream>
