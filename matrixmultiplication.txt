@@ -78,4 +78,5 @@ int main() {
 //nvcc filename.cu -o filename
 //./filename
 
-
+//Terminal: nvcc -o file file.cu
+//./file
