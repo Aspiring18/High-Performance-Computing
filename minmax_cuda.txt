@@ -1,0 +1,216 @@
+%%writefile reduction.cu
+#include <iostream>
+#include <cuda_runtime.h>
+
+// CUDA kernel for parallel reduction to find minimum value
+__global__ void parallelMin(const int *arr, int *result, int N) {
+    extern __shared__ int shared[];
+
+    int tid = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Load data to shared memory
+    if (index < N) {
+        shared[tid] = arr[index];
+    } else {
+        shared[tid] = INT_MAX;
+    }
+    __syncthreads();
+
+    // Reduction in shared memory
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride && index + stride < N) {
+            if (shared[tid] > shared[tid + stride]) {
+                shared[tid] = shared[tid + stride];
+            }
+        }
+        __syncthreads();
+    }
+
+    // Write result to global memory
+    if (tid == 0) {
+        result[blockIdx.x] = shared[0];
+    }
+
+    // Print thread activity
+    if (index < N) {
+        printf("Thread %d: Loaded %d\n", index, arr[index]);
+        for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+            if (tid < stride && index + stride < N) {
+                printf("Thread %d: Compared %d with %d\n", index, shared[tid], shared[tid + stride]);
+            }
+            __syncthreads();
+        }
+        if (tid == 0) {
+            printf("Thread %d: Wrote %d to result\n", index, shared[0]);
+        }
+    }
+}
+
+// CUDA kernel for parallel reduction to find maximum value
+__global__ void parallelMax(const int *arr, int *result, int N) {
+    extern __shared__ int shared[];
+
+    int tid = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Load data to shared memory
+    if (index < N) {
+        shared[tid] = arr[index];
+    } else {
+        shared[tid] = INT_MIN;
+    }
+    __syncthreads();
+
+    // Reduction in shared memory
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride && index + stride < N) {
+            if (shared[tid] < shared[tid + stride]) {
+                shared[tid] = shared[tid + stride];
+            }
+        }
+        __syncthreads();
+    }
+
+    // Write result to global memory
+    if (tid == 0) {
+        result[blockIdx.x] = shared[0];
+    }
+
+    // Print thread activity
+    if (index < N) {
+        printf("Thread %d: Loaded %d\n", index, arr[index]);
+        for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+            if (tid < stride && index + stride < N) {
+                printf("Thread %d: Compared %d with %d\n", index, shared[tid], shared[tid + stride]);
+            }
+            __syncthreads();
+        }
+        if (tid == 0) {
+            printf("Thread %d: Wrote %d to result\n", index, shared[0]);
+        }
+    }
+}
+
+// CUDA kernel for parallel reduction to find sum
+__global__ void parallelSum(const int *arr, int *result, int N) {
+    extern __shared__ int shared[];
+
+    int tid = threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Load data to shared memory
+    if (index < N) {
+        shared[tid] = arr[index];
+    } else {
+        shared[tid] = 0;
+    }
+    __syncthreads();
+
+    // Reduction in shared memory
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride && index + stride < N) {
+            shared[tid] += shared[tid + stride];
+        }
+        __syncthreads();
+    }
+
+    // Write result to global memory
+    if (tid == 0) {
+        result[blockIdx.x] = shared[0];
+    }
+
+    // Print thread activity
+    if (index < N) {
+        printf("Thread %d: Loaded %d\n", index, arr[index]);
+        for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+            if (tid < stride && index + stride < N) {
+                printf("Thread %d: Added %d with %d\n", index, shared[tid], shared[tid + stride]);
+            }
+            __syncthreads();
+        }
+        if (tid == 0) {
+            printf("Thread %d: Wrote %d to result\n", index, shared[0]);
+        }
+    }
+}
+
+int main() {
+    int N;
+    std::cout << "Enter the size of the array: ";
+    std::cin >> N;
+
+    // Generate random data
+    int *arr = new int[N];
+    std::cout << "Enter elements of the array: ";
+    for (int i = 0; i < N; ++i) {
+        std::cin >> arr[i];
+    }
+
+    // Allocate memory on device
+    int *device_arr;
+    cudaMalloc(&device_arr, N * sizeof(int));
+    cudaMemcpy(device_arr, arr, N * sizeof(int), cudaMemcpyHostToDevice);
+
+    // Define block and grid dimensions
+    int blockSize = 256;
+    int gridSize = (N + blockSize - 1) / blockSize;
+
+    // Allocate memory for result on host
+    int *result_min = new int[gridSize];
+    int *result_max = new int[gridSize];
+    int *result_sum = new int[gridSize];
+
+    // Allocate memory for result on device
+    int *device_result_min, *device_result_max, *device_result_sum;
+    cudaMalloc(&device_result_min, gridSize * sizeof(int));
+    cudaMalloc(&device_result_max, gridSize * sizeof(int));
+    cudaMalloc(&device_result_sum, gridSize * sizeof(int));
+
+    // Perform parallel reduction to find minimum value
+    parallelMin<<<gridSize, blockSize, blockSize * sizeof(int)>>>(device_arr, device_result_min, N);
+
+    // Perform parallel reduction to find maximum value
+    parallelMax<<<gridSize, blockSize, blockSize * sizeof(int)>>>(device_arr, device_result_max, N);
+
+    // Perform parallel reduction to find sum
+    parallelSum<<<gridSize, blockSize, blockSize * sizeof(int)>>>(device_arr, device_result_sum, N);
+
+    // Copy results from device to host
+    cudaMemcpy(result_min, device_result_min, gridSize * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_max, device_result_max, gridSize * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_sum, device_result_sum, gridSize * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // Final reduction on host
+    int min_val = result_min[0];
+    int max_val = result_max[0];
+    int sum_val = result_sum[0];
+    for (int i = 1; i < gridSize; ++i) {
+        if (result_min[i] < min_val) min_val = result_min[i];
+        if (result_max[i] > max_val) max_val = result_max[i];
+        sum_val += result_sum[i];
+    }
+
+    // Print results
+    std::cout << "Minimum: " << min_val << std::endl;
+    std::cout << "Maximum: " << max_val << std::endl;
+    std::cout << "Sum: " << sum_val << std::endl;
+    std::cout << "Average: " << static_cast<double>(sum_val) / N << std::endl;
+
+    // Free device memory
+    cudaFree(device_arr);
+    cudaFree(device_result_min);
+    cudaFree(device_result_max);
+    cudaFree(device_result_sum);
+
+    // Free host memory
+    delete[] arr;
+    delete[] result_min;
+    delete[] result_max;
+    delete[] result_sum;
+
+    return 0;
+}
+
+//!nvcc reduction.cu -o reduction
+//!./reduction 
